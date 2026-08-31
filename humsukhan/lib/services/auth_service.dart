@@ -7,10 +7,9 @@ import 'supabase_service.dart';
 /// Authentication service wrapping Supabase GoTrue.
 ///
 /// Handles sign-up, sign-in, sign-out, password reset, anonymous sign-in,
-/// and profile repair. Email verification is handled transparently: if
-/// Supabase requires email confirmation, the service attempts an automatic
-/// sign-in after account creation and surfaces a clear error if verification
-/// is still pending.
+/// and profile repair. Email confirmation is intentionally not handled in the
+/// client flow; the Supabase project should have Confirm email disabled so
+/// sign-up returns an authenticated session immediately.
 class AuthService {
   static AuthService? _instance;
   static AuthService get instance => _instance ??= AuthService._();
@@ -63,19 +62,13 @@ class AuthService {
         return AuthResult.failure('Account creation failed: no user returned.');
       }
 
+      // With Supabase "Confirm email" disabled, signUp returns a session
+      // immediately. The profile trigger and _ensureProfile() both protect
+      // against a missing public profile row.
       if (response.session == null) {
-        debugPrint(
-          '[AuthService] signUp returned null session – '
-          'attempting automatic signIn for $email',
-        );
-        final signInResult = await signIn(email: email, password: password);
-        if (signInResult.success) {
-          await _ensureProfile(signInResult.user!, name: name);
-          return signInResult;
-        }
         return AuthResult.failure(
-          'Account created, but email verification is required. '
-          'Please check your inbox and verify your email, then sign in.',
+          'Account was created, but the Supabase project still requires email confirmation. '
+          'Disable "Confirm email" in Supabase Authentication settings.',
         );
       }
 

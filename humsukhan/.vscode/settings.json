@@ -1,0 +1,13 @@
+{
+  // Enable the Deno language server only inside Supabase Edge Functions so
+  // the rest of the Flutter workspace continues to use the standard TypeScript
+  // language service.
+  "deno.enable": true,
+  "deno.enablePaths": ["supabase/functions"],
+  "deno.config": "supabase/functions/deno.json",
+
+  // Use the Deno formatter for Edge Function TypeScript files.
+  "[typescript]": {
+    "editor.defaultFormatter": "denoland.vscode-deno"
+  }
+}

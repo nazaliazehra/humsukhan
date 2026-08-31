@@ -524,7 +524,7 @@ class _PslScreenState extends State<PslScreen> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
                 border: Border.all(
                   color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
                 ),

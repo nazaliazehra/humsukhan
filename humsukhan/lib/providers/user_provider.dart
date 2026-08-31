@@ -227,7 +227,7 @@ class UserProvider extends ChangeNotifier {
           .uploadBinary(
             storagePath,
             bytes,
-            fileOptions: const FileOptions(upsert: true),
+            fileOptions: FileOptions(upsert: true),
           );
 
       // Get the public URL

@@ -160,7 +160,7 @@ class SessionCard extends StatelessWidget {
                   Text(s.aiInsights, style: TextStyle(fontSize: 12, color: cs.primary)),
                 ],
               ],
-            ]),
+            ),
           ]),
         ),
       ),

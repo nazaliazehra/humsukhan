@@ -377,7 +377,7 @@ class _EverydayScreenState extends State<EverydayScreen> {
             color: isActive
                 ? AppTheme.successLight
                 : cs.primary,
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
             boxShadow: [
               if (isActive)
                 BoxShadow(

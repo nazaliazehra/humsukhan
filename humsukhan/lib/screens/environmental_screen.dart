@@ -112,7 +112,7 @@ class EnvironmentalScreen extends StatelessWidget {
       case MonitoringStatus.modelUnavailable:
         bgColor = AppTheme.warningLight.withValues(alpha: 0.1);
         fgColor = AppTheme.warningLight;
-        icon = Icons.brain_outlined;
+        icon = Icons.psychology_outlined;
         statusText = s.environmentalModelNotInstalled;
         break;
       case MonitoringStatus.taggerFailed:
@@ -201,7 +201,7 @@ class EnvironmentalScreen extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () => _downloadModel(context),
+                onPressed: _downloadModel,
                 icon: const Icon(Icons.download),
                 label: Text(s.downloadEnvironmentalModel),
                 style: OutlinedButton.styleFrom(
@@ -216,7 +216,7 @@ class EnvironmentalScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _downloadModel(BuildContext context) async {
+  Future<void> _downloadModel() async {
     // Trigger model download — this is a setup action, not a monitoring action.
     final audioModelManager = AudioModelManager.instance;
     await audioModelManager.downloadModel();

@@ -123,6 +123,25 @@ class AuthProvider extends ChangeNotifier {
     return result.success;
   }
 
+  /// Sign in anonymously.
+  Future<bool> signInAnonymously() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    final result = await _auth.signInAnonymously();
+
+    _isLoading = false;
+    if (result.success) {
+      _user = result.user;
+      _error = null;
+    } else {
+      _error = result.errorMessage;
+    }
+    notifyListeners();
+    return result.success;
+  }
+
   /// Sign out.
   Future<void> signOut() async {
     _isLoading = true;

@@ -3,6 +3,7 @@ name: Build Android APK
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -43,8 +44,8 @@ jobs:
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v2.1.1-supabase.${{ github.run_number }}
-          name: HumSukhan v2.1.1 — Supabase Connected
+          tag_name: v2.1.1-build.${{ github.run_number }}
+          name: HumSukhan v2.1.1 Build ${{ github.run_number }}
           prerelease: false
           generate_release_notes: true
           files: humsukhan/build/app/outputs/flutter-apk/app-release.apk

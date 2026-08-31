@@ -79,6 +79,7 @@ class AppStrings {
   String get foldersTab => _isUrdu ? 'فولڈرز' : 'Folders';
   String get classesTab => _isUrdu ? 'کلاسز' : 'Classes';
   String get meetingsTab => _isUrdu ? 'میٹنگز' : 'Meetings';
+  String get lecturesTab => _isUrdu ? 'لیکچرز' : 'Lectures';
   String get generalFolder => _isUrdu ? 'عمومی' : 'General';
   String get sessionsCount => _isUrdu ? 'اجلاس' : 'sessions';
   String get noSavedSessions => _isUrdu ? 'ابھی تک کوئی محفوظ شدہ اجلاس نہیں' : 'No saved sessions yet';
@@ -154,6 +155,14 @@ class AppStrings {
   String get monitoringOffTitle => _isUrdu ? 'نگرانی بند' : 'Monitoring Off';
   String get startMonitoring => _isUrdu ? 'نگرانی شروع کریں' : 'Start Monitoring';
   String get stopMonitoring => _isUrdu ? 'نگرانی بند کریں' : 'Stop Monitoring';
+  String get monitoringStarting => _isUrdu ? 'نگرانی شروع ہو رہی ہے...' : 'Monitoring starting…';
+  String get monitoringStopping => _isUrdu ? 'نگرانی بند ہو رہی ہے...' : 'Monitoring stopping…';
+  String get monitoringError => _isUrdu ? 'نگرانی میں خرابی' : 'Monitoring error';
+  String get microphonePermissionRequired => _isUrdu ? 'مائیکروفون کی اجازت درکار ہے' : 'Microphone permission required';
+  String get microphoneRecorderFailed => _isUrdu ? 'مائیکروفون ریکارڈر ناکام ہو گیا' : 'Microphone recorder failed';
+  String get environmentalModelNotInstalled => _isUrdu ? 'ماحولیاتی ماڈل انسٹال نہیں ہے' : 'Environmental model not installed';
+  String get audioTaggerFailed => _isUrdu ? 'آڈیو ٹیگر شروع کرنے میں ناکامی' : 'Audio tagger initialization failed';
+  String get downloadEnvironmentalModel => _isUrdu ? 'ماحولیاتی ماڈل ڈاؤن لوڈ کریں' : 'Download environmental model';
   String get demoAlerts => _isUrdu ? 'ڈیمو الرٹس' : 'DEMO ALERTS';
   String get alertHistory => _isUrdu ? 'الرٹ کی تاریخ' : 'ALERT HISTORY';
   String get clearAll => _isUrdu ? 'سب صاف کریں' : 'Clear All';
@@ -178,6 +187,12 @@ class AppStrings {
   String get tapToEdit => _isUrdu ? 'ترمیم کے لیے ٹیپ کریں' : 'Tap to edit';
   String get editProfile => _isUrdu ? 'پروفائل میں ترمیم کریں' : 'Edit Profile';
   String get nameLabel => _isUrdu ? 'نام' : 'Name';
+  String get gallery => _isUrdu ? 'گیلری' : 'Gallery';
+  String get camera => _isUrdu ? 'کیمرا' : 'Camera';
+  String get removePicture => _isUrdu ? 'تصویر ہٹائیں' : 'Remove picture';
+  String get saving => _isUrdu ? 'محفوظ ہو رہا ہے...' : 'Saving...';
+  String get profilePictureUpdated => _isUrdu ? 'پروفائل تصویر اپ ڈیٹ ہو گئی' : 'Profile picture updated';
+  String get profilePictureFailed => _isUrdu ? 'پروفائل تصویر اپ ڈیٹ ناکام' : 'Failed to update profile picture';
   String get accessibility => _isUrdu ? 'رسائی' : 'Accessibility';
   String get darkMode => _isUrdu ? 'ڈارک موڈ' : 'Dark Mode';
   String get darkModeDesc => _isUrdu ? 'کم روشنی میں آنکھوں پر دباؤ کم کریں' : 'Reduce eye strain in low light';
@@ -206,7 +221,17 @@ class AppStrings {
   String get downloadLabel => _isUrdu ? 'ڈاؤن لوڈ' : 'Download';
   String get readyLabel => _isUrdu ? 'تیار' : 'Ready';
   String get notDownloaded => _isUrdu ? 'ڈاؤن لوڈ نہیں کیا' : 'Not downloaded';
-  String get offlineSttDesc => _isUrdu ? 'آف لائن سپیچ ریکگنیشن کے لیے زبان ماڈلز ڈاؤن لوڈ کریں۔ انگریزی ریئل ٹائم اسٹریمنگ کی اجازت دیتی ہے۔ اردو مختصر تاخیر کے ساتھ بیچ پروسیسنگ استعمال کرتی ہے۔' : 'Download language models for offline speech recognition. English supports real-time streaming. Urdu uses batch processing with a short delay.';
+  String get offlineSttDesc => _isUrdu ? 'انگریزی آف لائن ماڈل انٹرنیٹ کے بغیر لائیو کیپشنز فراهم کرتا ہے۔ اردو ماڈل آف لائن کام کرتا ہے لیکن معمول کے لیے مختصر تاخیر ہوتی ہے۔' : 'The English offline model provides live captions without an internet connection. The Urdu offline model works without internet but has a short delay for processing.';
+  String get englishOfflineSpeechTitle => _isUrdu ? 'انگریزی آف لائن سپیچ' : 'English Offline Speech';
+  String get englishOfflineSpeechDesc => _isUrdu ? 'انٹرنیٹ کے بغیر انگریزی تقریر پہچانیں۔ لائیو کیپشنز کے لیے بہترین۔' : 'Recognize English speech without an internet connection. Best for live captions.';
+  String get urduOfflineSpeechTitle => _isUrdu ? 'اردو آف لائن سپیچ' : 'Urdu Offline Speech';
+  String get urduOfflineSpeechDesc => _isUrdu ? 'انٹرنیٹ کے بغیر اردو تقریر پہچانیں۔ معمول کے لیے مختصر تاخیر ہوتی ہے۔' : 'Recognize Urdu speech without an internet connection. Has a short delay for processing.';
+  String get realtimeLabel => _isUrdu ? 'لائیو' : 'Live';
+  String get batchLabel => _isUrdu ? 'بیچ' : 'Batch';
+  String get modeOfflineLive => _isUrdu ? 'آف لائن (لائیو)' : 'Offline (Live)';
+  String get modeOfflineBatch => _isUrdu ? 'آف لائن (بیچ)' : 'Offline (Batch)';
+  String get modeOnline => _isUrdu ? 'آن لائن' : 'Online';
+  String get modeUnavailable => _isUrdu ? 'دستیاب نہیں' : 'Unavailable';
   String deleteModelDesc(int sizeMB) => _isUrdu ? 'یہ ${sizeMB}MB اسٹوریج فری کرے گا۔ آپ اسے بعد میں دوبارہ ڈاؤن لوڈ کر سکتے ہیں۔' : 'This will free up ${sizeMB}MB of storage. You can download it again later.';
   String get defaultRetention => _isUrdu ? 'ڈیفالٹ رٹینشن' : 'Default Retention';
   String get defaultRetentionPeriod => _isUrdu ? 'ڈیفالٹ رٹینشن مدت' : 'Default Retention Period';
@@ -215,6 +240,21 @@ class AppStrings {
   String get privacySection => _isUrdu ? 'رازداری' : 'Privacy';
   String get privacyNoticeText => _isUrdu ? 'HumSukhan آڈیو کو عارضی طور پر پروسیس کرتا ہے اور ریلیز کرتا ہے۔ کچھ خام آڈیو کبھی نہیں رکھا جاتا۔ محفوظ شدہ ریکارڈز صرف کیپشنز اور میٹا ڈیٹا رکھتے ہیں۔ برآمد شدہ فائلیں HumSukhan کے باہر رکھی جاتی ہیں۔' : 'HumSukhan processes audio temporarily and releases it. No raw audio is ever stored. Saved records contain captions and metadata only. Exported files are stored outside HumSukhan.';
   String get aboutSection => _isUrdu ? 'کے بارے میں' : 'About';
+  String get aboutWhatIs => _isUrdu ? 'HumSukhan کیا ہے' : 'What is HumSukhan';
+  String get aboutWhatIsDesc => _isUrdu ? 'HumSukhan ایک رسائی پہلے AI ساتھی ہے جو سننے میں مشکل والے افراد کے لیے ڈیزائن کیا گیا ہے۔ یہ ہر روز کی گفتگو، پیشہ ورانہ سننا، اور ماحولیاتی آگاہی کے لیے 실시간 مدد فراهم کرتا ہے۔' : 'HumSukhan is an accessibility-first AI companion designed for people who are deaf or hard of hearing. It provides real-time support for everyday conversations, professional listening, and environmental awareness.';
+  String get aboutWhoFor => _isUrdu ? 'کس کے لیے ہے' : 'Who it is for';
+  String get aboutWhoForDesc => _isUrdu ? 'سننے میں مشکل والے افراد، ان دوستوں اور خاندان جو ان کے ساتھ بات چیت کرتے ہیں، اور ہر کسی کو جو آسانی سے بات چیت کرنا چاہتے ہیں۔' : 'People who are deaf or hard of hearing, friends and family who communicate with them, and anyone who wants more accessible conversations.';
+  String get aboutEveryday => _isUrdu ? 'ہر روز کی گفتگو' : 'Everyday Communication';
+  String get aboutEverydayDesc => _isUrdu ? 'بولنے والے کی بات کو لائیو میں ٹیکسٹ میں تبدیل کریں۔ بولنا شروع کرنے کے لیے مائیکروفون دبائیں، اور جواب ٹائپ کریں یا فوری جوابات استعمال کریں۔' : 'Convert spoken words into live text. Press and hold the microphone to speak, then type a response or use quick replies.';
+  String get aboutProfessional => _isUrdu ? 'پیشہ ورانہ سننا' : 'Professional Listening';
+  String get aboutProfessionalDesc => _isUrdu ? 'میٹنگز، لیکچرز، اور کلاسز کی کیپشنز حاصل کریں۔ ٹرانسکرپٹس محفوظ کریں، AI خلاصے حاصل کریں، اور فولڈرز میں ترتیب دیں۔' : 'Get captions for meetings, lectures, and classes. Save transcripts, get AI-powered summaries, and organise them in folders.';
+  String get aboutAccessibility => _isUrdu ? 'رسائی پہلے ڈیزائن' : 'Accessibility-first Design';
+  String get aboutAccessibilityDesc => _isUrdu ? 'ڈارک موڈ، اعلیٰ کنٹراسٹ، بڑا ٹیکسٹ، اور اردو RTL سپورٹ شامل ہیں۔ ہر اسکرین زیادہ سے زیادہ وضاحت کے لیے ڈیزائن کیا گیا ہے۔' : 'Includes dark mode, high contrast, large text, and Urdu RTL support. Every screen is designed for maximum legibility.';
+  String get aboutPrivacy => _isUrdu ? 'رازداری اور مقامی پروسیسنگ' : 'Privacy & Local Processing';
+  String get aboutPrivacyDesc => _isUrdu ? 'آڈیو عارضی طور پر پروسیس ہوتا ہے اور ریلیز ہو جاتا ہے۔ کچھ خام آڈیو کبھی نہیں رکھا جاتا۔ سپیچ پہچان آف لائن ماڈلز کے ساتھ مقامی طور پر چل سکتی ہے۔' : 'Audio is processed temporarily and released. No raw audio is ever stored. Speech recognition can run locally with offline models.';
+  String get aboutCapabilities => _isUrdu ? 'موجودہ صلاحیتیں' : 'Current Capabilities';
+  String get aboutCapabilitiesDesc => _isUrdu ? 'انگریزی اور اردو میں سپیچ پہچان، لائیو کیپشنز، پیشہ ورانہ اجلاس محفوظ کریں، AI خلاصے، ماحولیاتی الرٹس، اور ٹیکسٹ سے تقریر۔' : 'Speech recognition in English and Urdu, live captions, professional session recording, AI summaries, environmental alerts, and text-to-speech.';
+  String get aboutVersion => _isUrdu ? 'ورژن' : 'Version';
   String get fontLabel => _isUrdu ? 'فونٹ' : 'Font';
   String get fontDesc => _isUrdu ? 'ایٹکسن ہائپرلیجیبل — زیادہ سے زیادہ وضاحت کے لیے ڈیزائن کیا گیا' : 'Atkinson Hyperlegible — Designed for maximum legibility';
   String get maximumAllowed => _isUrdu ? 'زیادہ سے زیادہ اجازت' : 'Maximum allowed';
@@ -289,7 +329,7 @@ class AppStrings {
   String get allDataDeletedMsg => _isUrdu ? 'تمام ڈیٹا حذف ہو گیا' : 'All data deleted';
 
   // ── PSL Screen ──
-  String get handShapeTitle => _isUrdu ? 'ہاتھ کی شکل کی پہچان' : 'Hand-Shape Recognition';
+  String get handShapeTitle => _isUrdu ? 'پاکستانی سائن لینگویج' : 'PSL Recognition';
   String get clearText => _isUrdu ? 'متن صاف کریں' : 'Clear text';
   String shapeLabel(String shape) => _isUrdu ? 'شکل: $shape' : 'Shape: $shape';
   String get holdHandInGuide => _isUrdu ? 'اپنا ہاتھ گائیڈ ایریا میں رکھیں' : 'Hold your hand in the guide area';
@@ -305,6 +345,18 @@ class AppStrings {
   String get cameraRequiresAccess => _isUrdu ? 'ہاتھ کی شکل کی پہچان کے لیے کیمرہ تک رسائی درکار ہے' : 'Hand-shape recognition requires camera access';
   String get holdHandOverlay => _isUrdu ? 'ہاتھ یہاں\nرکھیں' : 'Hold hand\nhere';
   String get pslInstructions => _isUrdu ? 'کیمرا کو ہاتھ کی شکل دکھائیں۔ ہر پہچانی گئی شکل ایک حرف شامل کرتی ہے۔ کھلی ہتھیلی اسپیس شامل کرتی ہے۔' : 'Show a hand shape to the camera. Each recognised shape adds a character. Open palm adds a space.';
+  String get switchCamera => _isUrdu ? 'کیمرا تبدیل کریں' : 'Switch camera';
+  String get frontCameraLabel => _isUrdu ? 'سامنے کا کیمرا' : 'Front camera';
+  String get rearCameraLabel => _isUrdu ? 'پیچھے کا کیمرا' : 'Rear camera';
+  String get initializingRecognition => _isUrdu ? 'پہچان شروع ہو رہی ہے...' : 'Initializing recognition…';
+  String get recognitionStarting => _isUrdu ? 'پہچان شروع ہو رہی ہے' : 'Starting recognition';
+  String get recognitionActive => _isUrdu ? 'پہچان فعال — ہاتھ دکھائیں' : 'Recognition active — show your hand';
+  String get recognitionPaused => _isUrdu ? 'پہچان رکی ہوئی ہے' : 'Recognition paused';
+  String get noTrainedModel => _isUrdu ? 'کوئی تربیت یافتہ ماڈل دستیاب نہیں — جلد کے رنگ کے ہیورسٹکس استعمال ہو رہے ہیں' : 'No trained model — using skin-colour heuristics';
+  String get cameraSwitchFailed => _isUrdu ? 'کیمرا تبدیل کرنے میں ناکامی' : 'Failed to switch camera';
+  String get switchToFront => _isUrdu ? 'سامنے کے کیمرے پر تبدیل کریں' : 'Switch to front camera';
+  String get switchToRear => _isUrdu ? 'پیچھے کے کیمرے پر تبدیل کریں' : 'Switch to rear camera';
+  String get cameraSwitching => _isUrdu ? 'کیمرا تبدیل ہو رہا ہے...' : 'Switching camera…';
 
   // ── Session Detail ──
   String get sessionTypeLabel => _isUrdu ? 'قسم' : 'Type';
@@ -345,6 +397,8 @@ class AppStrings {
   String get sessionsInFolderDesc => _isUrdu ? 'اجلاس شروع کریں اور انہیں اس فولڈر میں تفویض کریں۔' : 'Start a session and assign it to this folder.';
   String get sessionDeleted => _isUrdu ? 'اجلاس حذف ہو گیا' : 'Session deleted';
   String get undo => _isUrdu ? 'واپس' : 'Undo';
+  String get moveToFolder => _isUrdu ? 'فولڈر میں منتقل کریں' : 'Move to Folder';
+  String get moveToNoFolder => _isUrdu ? 'عمومی فولڈر' : 'General (no folder)';
   String get keyInsights => _isUrdu ? 'اہم بصیرت' : 'Key Insights';
   String deadlineCount(int n) => _isUrdu ? '$n ڈیڈ لائنز' : '$n deadline${n == 1 ? '' : 's'}';
   String actionCount(int n) => _isUrdu ? '$n اقدامات' : '$n action${n == 1 ? '' : 's'}';
@@ -369,6 +423,9 @@ class AppStrings {
   String get readAloud => _isUrdu ? 'بلند آواز میں پڑھیں' : 'Read aloud';
   String get sendMessage => _isUrdu ? 'پیغام بھیجیں' : 'Send message';
   String get sendLabel => _isUrdu ? 'بھیجیں' : 'Send';
+  String get holdToSpeak => _isUrdu ? 'بولنے کے لیے دبائیں' : 'Hold to speak';
+  String get youLabel => _isUrdu ? 'آپ' : 'You';
+  String get speakerLabel2 => _isUrdu ? 'سابقہ' : 'Speaker';
 
   // ── Reusable Widget Labels ──
   String get dismissAlertLabel => _isUrdu ? 'الرٹ برطرف کریں' : 'Dismiss alert';

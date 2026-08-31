@@ -17,13 +17,19 @@ class HomeScreen extends StatelessWidget {
     final profile = user.profile;
     final s = AppStrings.of(context);
 
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [AppTokens.warmIvory, AppTokens.softCream],
+            colors: isDark
+                ? [cs.surface, cs.surfaceContainerHighest]
+                : [AppTokens.warmIvory, AppTokens.softCream],
           ),
         ),
         child: SafeArea(
@@ -38,10 +44,10 @@ class HomeScreen extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      width: 56,
-                      height: 56,
+                      width: 72,
+                      height: 72,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(18),
                         boxShadow: [
                           BoxShadow(
                             color: AppTokens.deepSage.withValues(alpha: 0.15),
@@ -51,7 +57,7 @@ class HomeScreen extends StatelessWidget {
                         ],
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(18),
                         child: Image.asset('assets/logo.png', fit: BoxFit.cover),
                       ),
                     ),
@@ -62,18 +68,18 @@ class HomeScreen extends StatelessWidget {
                         children: [
                           Text(
                             '${_timeGreeting(s)}, ${profile?.name ?? s.greetingFallback}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.w700,
-                              color: AppTokens.textDeepForest,
+                              color: cs.onSurface,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             s.yourCompanion,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
-                              color: AppTokens.textSecondary,
+                              color: cs.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -124,10 +130,10 @@ class HomeScreen extends StatelessWidget {
                 // Quick Actions
                 Text(
                   s.quickActions,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: AppTokens.textMuted,
+                    color: cs.onSurfaceVariant,
                     letterSpacing: 1.5,
                   ),
                 ),
@@ -181,7 +187,7 @@ class HomeScreen extends StatelessWidget {
                           Icon(
                             environmental.monitoringEnabled ? Icons.circle : Icons.circle_outlined,
                             size: 8,
-                            color: environmental.monitoringEnabled ? AppTokens.deepSage : AppTokens.textMuted,
+                            color: environmental.monitoringEnabled ? AppTokens.deepSage : AppTokens.mutedSageGray,
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -189,7 +195,7 @@ class HomeScreen extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
-                              color: environmental.monitoringEnabled ? AppTokens.deepSage : AppTokens.textMuted,
+                              color: environmental.monitoringEnabled ? AppTokens.deepSage : AppTokens.mutedSageGray,
                             ),
                           ),
                         ],
@@ -208,10 +214,10 @@ class HomeScreen extends StatelessWidget {
                     Flexible(
                       child: Text(
                         s.recentSessions,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: AppTokens.textMuted,
+                          color: cs.onSurfaceVariant,
                           letterSpacing: 1.5,
                         ),
                         maxLines: 1,
@@ -220,7 +226,7 @@ class HomeScreen extends StatelessWidget {
                     ),
                     TextButton(
                       onPressed: () => Navigator.pushNamed(context, '/professional'),
-                      child: Text(s.viewAll, style: const TextStyle(color: AppTokens.deepSage)),
+                      child: Text(s.viewAll, style: TextStyle(color: cs.primary)),
                     ),
                   ],
                 ),
@@ -232,12 +238,12 @@ class HomeScreen extends StatelessWidget {
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          Icon(Icons.event_note, color: AppTokens.mutedSageGray),
+                          Icon(Icons.event_note, color: cs.onSurfaceVariant),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               s.noRecentSessions,
-                              style: const TextStyle(color: AppTokens.textMuted, fontSize: 14),
+                              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 14),
                             ),
                           ),
                         ],
@@ -259,18 +265,18 @@ class HomeScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppTokens.deepSage.withValues(alpha: 0.06),
+                    color: cs.primary.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                    border: Border.all(color: AppTokens.deepSage.withValues(alpha: 0.15)),
+                    border: Border.all(color: cs.primary.withValues(alpha: 0.15)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.shield, size: 18, color: AppTokens.deepSage),
+                      Icon(Icons.shield, size: 18, color: cs.primary),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           s.privacyNote,
-                          style: const TextStyle(fontSize: 12, color: AppTokens.deepSage),
+                          style: TextStyle(fontSize: 12, color: cs.primary),
                         ),
                       ),
                     ],
@@ -311,6 +317,7 @@ class _ActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Card(
       child: InkWell(
         onTap: onTap,
@@ -323,28 +330,28 @@ class _ActionCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: AppTokens.deepSage.withValues(alpha: 0.1),
+                  color: cs.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppTokens.radiusSm),
                 ),
-                child: Icon(icon, color: AppTokens.deepSage, size: 24),
+                child: Icon(icon, color: cs.primary, size: 24),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600, color: AppTokens.textDeepForest,
+                    Text(title, style: TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600, color: cs.onSurface,
                     )),
                     const SizedBox(height: 2),
-                    Text(subtitle, style: const TextStyle(
-                      fontSize: 13, color: AppTokens.textSecondary,
+                    Text(subtitle, style: TextStyle(
+                      fontSize: 13, color: cs.onSurfaceVariant,
                     )),
                   ],
                 ),
               ),
-              if (trailing != null) trailing! else const Icon(
-                Icons.chevron_right, color: AppTokens.mutedSageGray, size: 22,
+              if (trailing != null) trailing! else Icon(
+                Icons.chevron_right, color: cs.onSurfaceVariant, size: 22,
               ),
             ],
           ),

@@ -7,6 +7,7 @@ class UserProfile {
   final String id;
   final String name;
   final String avatarEmoji;
+  final String? avatarUrl;
   final String preferredLanguage;
   final String tutorName;
   final DateTime createdAt;
@@ -15,15 +16,21 @@ class UserProfile {
     String? id,
     this.name = 'User',
     this.avatarEmoji = '👤',
+    this.avatarUrl,
     this.preferredLanguage = 'English',
     this.tutorName = 'Sam',
     DateTime? createdAt,
   }) : id = id ?? _uuid.v4(),
        createdAt = createdAt ?? DateTime.now();
 
+  /// Whether the user has a custom profile picture (as opposed to just the emoji default).
+  bool get hasAvatarImage => avatarUrl != null && avatarUrl!.isNotEmpty;
+
   UserProfile copyWith({
     String? name,
     String? avatarEmoji,
+    String? avatarUrl,
+    bool clearAvatarUrl = false,
     String? preferredLanguage,
     String? tutorName,
   }) {
@@ -31,6 +38,7 @@ class UserProfile {
       id: id,
       name: name ?? this.name,
       avatarEmoji: avatarEmoji ?? this.avatarEmoji,
+      avatarUrl: clearAvatarUrl ? null : (avatarUrl ?? this.avatarUrl),
       preferredLanguage: preferredLanguage ?? this.preferredLanguage,
       tutorName: tutorName ?? this.tutorName,
       createdAt: createdAt,
@@ -41,6 +49,7 @@ class UserProfile {
     'id': id,
     'name': name,
     'avatarEmoji': avatarEmoji,
+    'avatarUrl': avatarUrl,
     'preferredLanguage': preferredLanguage,
     'tutorName': tutorName,
     'createdAt': createdAt.toIso8601String(),
@@ -50,6 +59,7 @@ class UserProfile {
     id: json['id'],
     name: json['name'] ?? 'User',
     avatarEmoji: json['avatarEmoji'] ?? '👤',
+    avatarUrl: json['avatarUrl'],
     preferredLanguage: json['preferredLanguage'] ?? 'English',
     tutorName: json['tutorName'] ?? 'Sam',
     createdAt: DateTime.parse(json['createdAt']),
@@ -60,6 +70,83 @@ class UserProfile {
 enum ConversationState { idle, starting, active, stopping, saveDecision }
 
 enum SaveAction { deleteNow, save }
+
+// ===================== CONVERSATION MESSAGE =====================
+/// A single message in the Everyday push-to-talk conversation.
+///
+/// Messages carry a monotonic [sequenceNumber] for stable ordering,
+/// a [turnStartedAt] timestamp captured when the speaker's mic was
+/// pressed (used as a tie-breaker), and an [owner] ('speaker' or 'user').
+///
+/// While the speaker holds the mic, exactly ONE [ConversationMessage]
+/// with `isPartial == true` exists — it is updated in-place and never
+/// added to the committed list until the mic is released.
+class ConversationMessage {
+  final String id;
+  final String text;
+  final String owner; // 'speaker' or 'user'
+  final DateTime timestamp;
+  final DateTime turnStartedAt; // captured when mic was pressed
+  final int sequenceNumber; // monotonic global ordering
+  final bool isPartial;
+  final String language;
+
+  ConversationMessage({
+    String? id,
+    required this.text,
+    required this.owner,
+    DateTime? timestamp,
+    DateTime? turnStartedAt,
+    this.sequenceNumber = 0,
+    this.isPartial = false,
+    this.language = 'English',
+  })  : id = id ?? _uuid.v4(),
+        timestamp = timestamp ?? DateTime.now(),
+        turnStartedAt = turnStartedAt ?? DateTime.now();
+
+  ConversationMessage copyWith({
+    String? text,
+    bool? isPartial,
+    int? sequenceNumber,
+    String? language,
+  }) {
+    return ConversationMessage(
+      id: id,
+      text: text ?? this.text,
+      owner: owner,
+      timestamp: timestamp,
+      turnStartedAt: turnStartedAt,
+      sequenceNumber: sequenceNumber ?? this.sequenceNumber,
+      isPartial: isPartial ?? this.isPartial,
+      language: language ?? this.language,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'text': text,
+        'owner': owner,
+        'timestamp': timestamp.toIso8601String(),
+        'turnStartedAt': turnStartedAt.toIso8601String(),
+        'sequenceNumber': sequenceNumber,
+        'isPartial': isPartial,
+        'language': language,
+      };
+
+  factory ConversationMessage.fromJson(Map<String, dynamic> json) =>
+      ConversationMessage(
+        id: json['id'],
+        text: json['text'] ?? '',
+        owner: json['owner'] ?? 'speaker',
+        timestamp: DateTime.parse(json['timestamp']),
+        turnStartedAt: json['turnStartedAt'] != null
+            ? DateTime.parse(json['turnStartedAt'])
+            : DateTime.parse(json['timestamp']),
+        sequenceNumber: json['sequenceNumber'] ?? 0,
+        isPartial: json['isPartial'] ?? false,
+        language: json['language'] ?? 'English',
+      );
+}
 
 // ===================== CAPTION =====================
 class Caption {

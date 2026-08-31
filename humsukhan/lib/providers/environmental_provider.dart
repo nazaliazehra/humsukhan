@@ -13,6 +13,38 @@ import '../services/supabase_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'settings_provider.dart';
 
+/// Fine-grained monitoring status that accurately reflects which
+/// subsystem is active, starting, or has failed.
+enum MonitoringStatus {
+  /// Monitoring is not running.
+  off,
+
+  /// Permission is being requested or has been denied.
+  permissionDenied,
+
+  /// The audio recorder could not be created or started.
+  recorderFailed,
+
+  /// The environmental sound-classification model is not installed.
+  modelUnavailable,
+
+  /// The audio tagger failed to initialise.
+  taggerFailed,
+
+  /// An unexpected error occurred.
+  error,
+
+  /// The monitoring pipeline is starting up (permission granted,
+  /// recorder and model initialising).
+  starting,
+
+  /// Monitoring is active and processing audio.
+  active,
+
+  /// Monitoring is shutting down.
+  stopping,
+}
+
 class EnvironmentalProvider extends ChangeNotifier {
   EnvironmentalProvider() {
     unawaited(_initializeNativeBridge());
@@ -23,7 +55,7 @@ class EnvironmentalProvider extends ChangeNotifier {
   final AlertHistoryStore _historyStore = AlertHistoryStore();
   final List<SoundEvent> _alertHistory = [];
   SoundEvent? _currentAlert;
-  String _monitoringState = 'OFF';
+  MonitoringStatus _status = MonitoringStatus.off;
   String? _lastAlertType;
   DateTime? _lastAlertTime;
   SettingsProvider? _settingsProvider;
@@ -49,14 +81,53 @@ class EnvironmentalProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool get monitoringEnabled => _monitoringState == 'ACTIVE' || _monitoringState == 'STARTING';
-  String get monitoringState => _monitoringState;
-  bool get isStarting => _monitoringState == 'STARTING';
-  bool get isStopping => _monitoringState == 'STOPPING';
-  bool get hasError => _monitoringState == 'ERROR';
+  // ── Status getters ─────────────────────────────────────────────────
+
+  MonitoringStatus get status => _status;
+
+  /// Whether monitoring is in any active/starting state (for backward compatibility).
+  bool get monitoringEnabled =>
+      _status == MonitoringStatus.active || _status == MonitoringStatus.starting;
+
+  String get monitoringState => _status.name.toUpperCase();
+
+  bool get isStarting => _status == MonitoringStatus.starting;
+
+  bool get isStopping => _status == MonitoringStatus.stopping;
+
+  bool get hasError =>
+      _status == MonitoringStatus.error ||
+      _status == MonitoringStatus.permissionDenied ||
+      _status == MonitoringStatus.recorderFailed ||
+      _status == MonitoringStatus.modelUnavailable ||
+      _status == MonitoringStatus.taggerFailed;
+
   bool get isProcessing => false;
   bool get isLocal => monitoringEnabled;
-  String get environmentalStatus => monitoringEnabled ? 'Offline / Local' : 'Off';
+
+  String get environmentalStatus {
+    switch (_status) {
+      case MonitoringStatus.active:
+        return 'Offline / Local';
+      case MonitoringStatus.starting:
+        return 'Starting…';
+      case MonitoringStatus.permissionDenied:
+        return 'Microphone permission required';
+      case MonitoringStatus.recorderFailed:
+        return 'Microphone recorder failed';
+      case MonitoringStatus.modelUnavailable:
+        return 'Environmental model not installed';
+      case MonitoringStatus.taggerFailed:
+        return 'Audio tagger initialization failed';
+      case MonitoringStatus.error:
+        return 'Error';
+      case MonitoringStatus.stopping:
+        return 'Stopping…';
+      case MonitoringStatus.off:
+        return 'Off';
+    }
+  }
+
   List<SoundEvent> get alertHistory => List.unmodifiable(_alertHistory);
   SoundEvent? get currentAlert => _currentAlert;
 
@@ -84,12 +155,29 @@ class EnvironmentalProvider extends ChangeNotifier {
     if (_bridgeInitialized) return;
     _bridgeInitialized = true;
     await _bridge.initialize(onChange: _handleNativeChange);
-    _monitoringState = _bridge.state;
+    // Map the bridge's coarse state to our fine-grained status.
+    final bridgeState = _bridge.state;
+    _status = _mapBridgeState(bridgeState);
     notifyListeners();
   }
 
+  MonitoringStatus _mapBridgeState(String bridgeState) {
+    switch (bridgeState) {
+      case 'ACTIVE':
+        return MonitoringStatus.active;
+      case 'STARTING':
+        return MonitoringStatus.starting;
+      case 'STOPPING':
+        return MonitoringStatus.stopping;
+      case 'ERROR':
+        return MonitoringStatus.error;
+      default:
+        return MonitoringStatus.off;
+    }
+  }
+
   void _handleNativeChange(String state, Map<String, dynamic>? event) {
-    _monitoringState = state;
+    _status = _mapBridgeState(state);
     if (event != null) {
       final type = event['type']?.toString();
       final confidence = (event['confidence'] as num?)?.toDouble();
@@ -101,50 +189,75 @@ class EnvironmentalProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── Toggle monitoring ──────────────────────────────────────────────
+
   Future<void> toggleMonitoring() async {
     if (monitoringEnabled) {
-      _monitoringState = 'STOPPING';
+      _status = MonitoringStatus.stopping;
       notifyListeners();
       _soundService.stopMonitoring();
       await _bridge.stop();
-      _monitoringState = 'OFF';
+      _status = MonitoringStatus.off;
       notifyListeners();
       return;
     }
 
+    // Step 1: Request microphone permission.
     final permission = await Permission.microphone.request();
     if (!permission.isGranted) {
-      _monitoringState = 'ERROR';
+      _status = MonitoringStatus.permissionDenied;
       notifyListeners();
       return;
     }
 
-    _monitoringState = 'STARTING';
+    // Step 2: Start the pipeline.
+    _status = MonitoringStatus.starting;
     notifyListeners();
 
     if (Platform.isIOS) {
-      // Native iOS configures the AVAudioSession; Flutter owns the local
-      // sherpa-ONNX stream. iOS may suspend/terminate the app under OS rules.
+      // iOS: native configures AVAudioSession; Flutter owns the local detector.
       if (!await _bridge.start()) {
-        _monitoringState = 'ERROR';
+        _status = MonitoringStatus.error;
         notifyListeners();
         return;
       }
       _soundService.onSoundDetected = processSoundEvent;
-      final started = await _soundService.startMonitoring();
-      _monitoringState = started ? 'ACTIVE' : 'ERROR';
+      final result = await _soundService.startMonitoring(permissionAlreadyGranted: true);
+      _status = _mapStartupResult(result);
     } else {
+      // Android: the foreground service owns the pipeline.
       final started = await _bridge.start();
-      if (!started) _monitoringState = 'ERROR';
+      if (!started) {
+        // The bridge couldn't start. The specific error will come through
+        // the EventChannel once the background engine reports its state.
+        _status = MonitoringStatus.error;
+      }
     }
     notifyListeners();
+  }
+
+  /// Map a [StartupResult] to a [MonitoringStatus].
+  MonitoringStatus _mapStartupResult(StartupResult result) {
+    switch (result) {
+      case StartupResult.success:
+        return MonitoringStatus.active;
+      case StartupResult.permissionDenied:
+        return MonitoringStatus.permissionDenied;
+      case StartupResult.recorderFailed:
+        return MonitoringStatus.recorderFailed;
+      case StartupResult.modelUnavailable:
+        return MonitoringStatus.modelUnavailable;
+      case StartupResult.taggerFailed:
+        return MonitoringStatus.taggerFailed;
+      case StartupResult.unknownError:
+        return MonitoringStatus.error;
+    }
   }
 
   bool processSoundEvent(SoundEvent event) {
     if (event.confidence < _minConfidence) return false;
 
     // Filter by allowed-alerts policy BEFORE the event enters history.
-    // Detection is independent of presentation; filtering happens here.
     final settings = _settingsProvider;
     if (settings != null && !settings.alertPolicy.isAllowed(event.type)) {
       return false;
@@ -176,7 +289,6 @@ class EnvironmentalProvider extends ChangeNotifier {
     return true;
   }
 
-  /// Dismiss the current alert (backward-compatible, no argument).
   void dismissAlert([String? eventId]) {
     final id = eventId ?? _currentAlert?.id;
     if (id != null) {
@@ -184,7 +296,6 @@ class EnvironmentalProvider extends ChangeNotifier {
       if (idx != -1) _alertHistory[idx] = _alertHistory[idx].copyWith(dismissed: true);
       unawaited(_historyStore.dismiss(id));
     }
-    // Only clear currentAlert if the dismissed event IS the current alert.
     if (_currentAlert?.id == id) _currentAlert = null;
     notifyListeners();
   }
@@ -196,8 +307,6 @@ class EnvironmentalProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Optionally sync the event to Supabase.  Silently ignores failures
-  /// so the local pipeline is never blocked by network issues.
   void _syncToSupabase(SoundEvent event) {
     final supabase = SupabaseService.instance;
     if (!supabase.isAuthenticated) return;
@@ -225,7 +334,6 @@ class EnvironmentalProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    // Android service owns its own lifecycle; never stop it from Activity disposal.
     unawaited(_bridge.dispose());
     super.dispose();
   }

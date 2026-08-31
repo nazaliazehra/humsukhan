@@ -91,10 +91,11 @@ class RetentionBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = AppStrings.of(context);
-    Color bgColor; Color textColor; String text;
-    if (daysRemaining <= 2) { bgColor = AppTokens.error.withValues(alpha: 0.1); textColor = AppTokens.error; text = '$daysRemaining ${s.daysLeft}'; }
-    else if (daysRemaining <= 7) { bgColor = AppTokens.warning.withValues(alpha: 0.1); textColor = AppTokens.warning; text = '$daysRemaining ${s.daysLeft}'; }
-    else { bgColor = AppTokens.deepSage.withValues(alpha: 0.1); textColor = AppTokens.deepSage; text = '$daysRemaining ${s.daysLeft}'; }
+    final cs = Theme.of(context).colorScheme;
+    Color bgColor; Color textColor; String text; IconData icon;
+    if (daysRemaining <= 2) { bgColor = AppTokens.error.withValues(alpha: 0.1); textColor = AppTokens.error; icon = Icons.warning; text = '$daysRemaining ${s.daysLeft}'; }
+    else if (daysRemaining <= 7) { bgColor = AppTokens.warning.withValues(alpha: 0.1); textColor = AppTokens.warning; icon = Icons.schedule; text = '$daysRemaining ${s.daysLeft}'; }
+    else { bgColor = cs.primary.withValues(alpha: 0.1); textColor = cs.primary; icon = Icons.check_circle_outline; text = '$daysRemaining ${s.daysLeft}'; }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -121,6 +122,7 @@ class SessionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = AppStrings.of(context);
+    final cs = Theme.of(context).colorScheme;
     return Card(
       child: InkWell(
         onTap: onTap,
@@ -129,29 +131,34 @@ class SessionCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              Icon(_typeIcon(), size: 20, color: AppTokens.deepSage),
+              Icon(_typeIcon(), size: 20, color: cs.primary),
               const SizedBox(width: 8),
-              Expanded(child: Text(session.title, style: const TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w600, color: AppTokens.textDeepForest,
+              Expanded(child: Text(session.title, style: TextStyle(
+                fontSize: 16, fontWeight: FontWeight.w600, color: cs.onSurface,
               ), maxLines: 1, overflow: TextOverflow.ellipsis)),
               RetentionBadge(daysRemaining: session.daysRemaining),
             ]),
             const SizedBox(height: 8),
-            Row(children: [
-              Icon(Icons.access_time, size: 14, color: AppTokens.textMuted),
-              const SizedBox(width: 4),
-              Text('${session.createdAt.day}/${session.createdAt.month}/${session.createdAt.year}',
-                  style: const TextStyle(fontSize: 12, color: AppTokens.textMuted)),
-              const SizedBox(width: 16),
-              Icon(Icons.subtitles, size: 14, color: AppTokens.textMuted),
-              const SizedBox(width: 4),
-              Text('${session.captions.length} ${s.captionsLabel}',
-                  style: const TextStyle(fontSize: 12, color: AppTokens.textMuted)),
-              if (insight != null && insight!.isAvailable) ...[
-                const SizedBox(width: 16),
-                const Icon(Icons.auto_awesome, size: 14, color: AppTokens.deepSage),
-                const SizedBox(width: 4),
-                Text(s.aiInsights, style: const TextStyle(fontSize: 12, color: AppTokens.deepSage)),
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                Icon(_typeIcon(), size: 14, color: cs.onSurfaceVariant),
+                Text(sessionTypeLabel(session.type),
+                    style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+                const SizedBox(width: 12),
+                Icon(Icons.access_time, size: 14, color: cs.onSurfaceVariant),
+                Text('${session.createdAt.day}/${session.createdAt.month}/${session.createdAt.year}',
+                    style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+                const SizedBox(width: 12),
+                Icon(Icons.subtitles, size: 14, color: cs.onSurfaceVariant),
+                Text('${session.captions.length} ${s.captionsLabel}',
+                    style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+                if (insight != null && insight!.isAvailable) ...[
+                  const SizedBox(width: 12),
+                  Icon(Icons.auto_awesome, size: 14, color: cs.primary),
+                  Text(s.aiInsights, style: TextStyle(fontSize: 12, color: cs.primary)),
+                ],
               ],
             ]),
           ]),
@@ -443,6 +450,35 @@ class ErrorState extends StatelessWidget {
             ElevatedButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: Text(buttonText!),),
           ],
         ]),
+      ),
+    );
+  }
+}
+
+// ===== INSIGHT CHIP (compact count badge for SessionCard) =====
+class _InsightChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isWarning;
+  const _InsightChip({required this.icon, required this.label, this.isWarning = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final color = isWarning ? AppTokens.warning : cs.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppTokens.radiusFull),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 3),
+          Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+        ],
       ),
     );
   }

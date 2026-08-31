@@ -37,12 +37,24 @@ class RealTtsProvider implements TtsProvider {
   @override
   Future<void> speak(String text, {String language = 'English'}) async {
     _speaking = true;
-    final locale = language.toLowerCase().contains('urdu') ? 'ur-PK' : 'en-US';
+    final locale = _resolveLocale(language);
     await _tts.setLanguage(locale);
     await _tts.speak(text);
     while (_speaking) {
       await Future.delayed(const Duration(milliseconds: 100));
     }
+  }
+
+  /// Resolve the TTS locale string from a language name.
+  ///
+  /// Returns the best-matching BCP-47 locale for the given language.
+  /// Falls back to 'en-US' when no specific locale is found.
+  String _resolveLocale(String language) {
+    final lower = language.toLowerCase();
+    if (lower.contains('urdu')) return 'ur-PK';
+    if (lower.contains('hindi')) return 'hi-IN';
+    if (lower.contains('roman')) return 'en-US'; // Roman Urdu uses Latin script
+    return 'en-US';
   }
 
   @override
@@ -74,6 +86,7 @@ class SpeechProvider extends ChangeNotifier {
   bool _isInitialized = false;
   bool _isSpeaking = false;
   String _lastSpokenText = '';
+  String? _speakingMessageId;
   LanguageResult? _detectedLanguage;
   STTMode _currentMode = STTMode.none;
   String _currentLanguage = 'English';
@@ -95,6 +108,7 @@ class SpeechProvider extends ChangeNotifier {
   bool get isInitialized => _isInitialized;
   bool get isSpeaking => _isSpeaking;
   String get lastSpokenText => _lastSpokenText;
+  String? get speakingMessageId => _speakingMessageId;
   LanguageResult? get detectedLanguage => _detectedLanguage;
   STTMode get currentMode => _currentMode;
   String get currentLanguage => _currentLanguage;
@@ -118,11 +132,11 @@ class SpeechProvider extends ChangeNotifier {
   String get sttModeLabel {
     switch (_currentMode) {
       case STTMode.sherpaStreaming:
-        return 'Offline (Streaming)';
+        return 'Offline (Live)';
       case STTMode.sherpaBatch:
         return 'Offline (Batch)';
       case STTMode.platform:
-        return 'Online (Google)';
+        return 'Online';
       case STTMode.demo:
         return 'Demo Mode';
       case STTMode.none:
@@ -134,11 +148,11 @@ class SpeechProvider extends ChangeNotifier {
   String get sttModeDescription {
     switch (_currentMode) {
       case STTMode.sherpaStreaming:
-        return 'Real-time offline speech recognition using Sherpa-ONNX. No internet required.';
+        return 'Live offline speech recognition. No internet required.';
       case STTMode.sherpaBatch:
-        return 'Offline speech recognition using Sherpa-ONNX. Short processing delay.';
+        return 'Offline speech recognition with a short processing delay.';
       case STTMode.platform:
-        return 'Online speech recognition using Google STT. Requires internet connection.';
+        return 'Online speech recognition. Requires internet connection.';
       case STTMode.demo:
         return 'Demo mode with simulated captions. No actual speech recognition.';
       case STTMode.none:
@@ -288,12 +302,22 @@ class SpeechProvider extends ChangeNotifier {
   Stream<SpeechResultEvent> get onResult => _sttProvider.onResult;
 
   /// Speak text using TTS.
-  Future<void> speak(String text, {String language = 'English'}) async {
+  ///
+  /// [messageId] is an optional identifier for the message being spoken.
+  /// When provided, [speakingMessageId] tracks which message is currently
+  /// being spoken, allowing the UI to show the correct stop icon.
+  Future<void> speak(String text, {String language = 'English', String? messageId}) async {
+    // Stop any current speech first.
+    if (_isSpeaking) {
+      await _ttsProvider.stop();
+    }
     _isSpeaking = true;
     _lastSpokenText = text;
+    _speakingMessageId = messageId;
     notifyListeners();
     await _ttsProvider.speak(text, language: language);
     _isSpeaking = false;
+    _speakingMessageId = null;
     notifyListeners();
   }
 
@@ -301,6 +325,7 @@ class SpeechProvider extends ChangeNotifier {
   Future<void> stopSpeaking() async {
     await _ttsProvider.stop();
     _isSpeaking = false;
+    _speakingMessageId = null;
     notifyListeners();
   }
 

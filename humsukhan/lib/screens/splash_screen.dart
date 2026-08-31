@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
@@ -6,7 +5,17 @@ import '../l10n/app_strings.dart';
 
 class SplashScreen extends StatefulWidget {
   final VoidCallback onComplete;
-  const SplashScreen({super.key, required this.onComplete});
+
+  /// A future that resolves once persisted settings are ready.
+  /// The splash will not dismiss until this future completes (and the
+  /// minimum display time has elapsed).
+  final Future<void>? initializationReady;
+
+  const SplashScreen({
+    super.key,
+    required this.onComplete,
+    this.initializationReady,
+  });
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -17,7 +26,6 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
-  Timer? _navigationTimer;
 
   @override
   void initState() {
@@ -34,15 +42,23 @@ class _SplashScreenState extends State<SplashScreen>
     );
     _controller.forward();
 
-    // Auto-navigate after delay
-    _navigationTimer = Timer(const Duration(milliseconds: 2500), () {
-      if (mounted) widget.onComplete();
-    });
+    _waitAndNavigate();
+  }
+
+  /// Wait for both the minimum display time AND the initialization future
+  /// (if provided) before dismissing the splash.
+  Future<void> _waitAndNavigate() async {
+    final minDisplayTime = Future.delayed(const Duration(milliseconds: 2500));
+    final futures = <Future<void>>[minDisplayTime];
+    if (widget.initializationReady != null) {
+      futures.add(widget.initializationReady!);
+    }
+    await Future.wait(futures);
+    if (mounted) widget.onComplete();
   }
 
   @override
   void dispose() {
-    _navigationTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

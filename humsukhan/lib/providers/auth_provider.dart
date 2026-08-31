@@ -73,6 +73,9 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// Sign up with email and password.
+  ///
+  /// On success the Supabase Auth user exists, a matching `profiles` row
+  /// is guaranteed, and an active session is available.
   Future<bool> signUp({
     required String email,
     required String password,
@@ -96,6 +99,9 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// Sign in with email and password.
+  ///
+  /// Also verifies that a `profiles` row exists for the user; creates
+  /// one if the database trigger did not fire.
   Future<bool> signIn({
     required String email,
     required String password,
@@ -105,25 +111,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     final result = await _auth.signIn(email: email, password: password);
-
-    _isLoading = false;
-    if (result.success) {
-      _user = result.user;
-      _error = null;
-    } else {
-      _error = result.errorMessage;
-    }
-    notifyListeners();
-    return result.success;
-  }
-
-  /// Sign in anonymously.
-  Future<bool> signInAnonymously() async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    final result = await _auth.signInAnonymously();
 
     _isLoading = false;
     if (result.success) {

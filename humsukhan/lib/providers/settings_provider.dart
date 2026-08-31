@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -8,6 +9,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 
 class SettingsProvider extends ChangeNotifier {
+  /// Completes once [_loadSettings] has finished reading SharedPreferences.
+  final Completer<void> _initCompleter = Completer<void>();
+
+  /// Whether local preferences have been loaded from disk.
+  bool get isLoaded => _initCompleter.isCompleted;
+
+  /// A future that resolves once persisted settings are available.
+  /// Consumers should await this before reading any persisted value
+  /// (e.g. [isOnboardingComplete]) to avoid the default-false race.
+  Future<void> get ready => _initCompleter.future;
+
   bool _isDarkMode = false;
   bool _isHighContrast = false;
   bool _isLargeText = false;
@@ -135,6 +147,7 @@ class SettingsProvider extends ChangeNotifier {
       }
     }
     notifyListeners();
+    if (!_initCompleter.isCompleted) _initCompleter.complete();
   }
 
   Future<void> _save(String key, dynamic value) async {
@@ -234,9 +247,13 @@ class SettingsProvider extends ChangeNotifier {
     await prefs.setString('allowedAlerts', jsonEncode(_allowedAlerts));
   }
 
-  void completeOnboarding() {
+  /// Mark onboarding as completed and **persist** the flag before returning.
+  ///
+  /// The caller must await this method so the flag is guaranteed to be on
+  /// disk before any navigation transition occurs.
+  Future<void> completeOnboarding() async {
     _isOnboardingComplete = true;
-    _save('onboardingComplete', true);
+    await _save('onboardingComplete', true);
     notifyListeners();
   }
 }

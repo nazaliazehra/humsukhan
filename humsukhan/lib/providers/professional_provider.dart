@@ -299,6 +299,11 @@ class ProfessionalProvider extends ChangeNotifier {
     }
   }
 
+  /// Add a finalized caption to the session and persist immediately.
+  ///
+  /// Each call: 1) appends to in-memory captions, 2) saves to local
+  /// SharedPreferences, 3) syncs to Supabase when authenticated.
+  /// This ensures captions survive app crashes and recognizer restarts.
   void addCaptionToSession(String sessionId, Caption caption) {
     final idx = _sessions.indexWhere((s) => s.id == sessionId);
     if (idx != -1) {
@@ -306,7 +311,21 @@ class ProfessionalProvider extends ChangeNotifier {
       final updatedCaptions = List<Caption>.from(session.captions)..add(caption);
       _sessions[idx] = session.copyWith(captions: updatedCaptions);
       _saveSessions();
+      // Persist to Supabase incrementally (best-effort, non-blocking).
+      _syncCaptionToCloud(sessionId, caption);
       notifyListeners();
+    }
+  }
+
+  /// Best-effort sync of a single caption to Supabase.
+  Future<void> _syncCaptionToCloud(String sessionId, Caption caption) async {
+    if (!SupabaseService.instance.isAuthenticated) return;
+    try {
+      final idx = _sessions.indexWhere((s) => s.id == sessionId);
+      if (idx == -1) return;
+      await DatabaseService.instance.upsertSession(_sessions[idx]);
+    } catch (e) {
+      debugPrint('[ProfessionalProvider] Caption cloud sync failed: $e');
     }
   }
 

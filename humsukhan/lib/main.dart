@@ -46,13 +46,24 @@ Future<void> environmentalMonitoringBackgroundMain() async {
     });
   };
 
-  final started = await detector.startMonitoring(permissionAlreadyGranted: true);
+  final result = await detector.startMonitoring(permissionAlreadyGranted: true);
+  // Map StartupResult to the coarse state strings the Android service expects.
+  // The Flutter-side EnvironmentalProvider uses the fine-grained StartupResult
+  // via the iOS path; Android receives this coarse state through the EventChannel.
+  final stateString = switch (result) {
+    StartupResult.success => 'ACTIVE',
+    StartupResult.permissionDenied => 'ERROR',
+    StartupResult.recorderFailed => 'ERROR',
+    StartupResult.modelUnavailable => 'ERROR',
+    StartupResult.taggerFailed => 'ERROR',
+    StartupResult.unknownError => 'ERROR',
+  };
   await channel.invokeMethod('pipelineState', {
-    'state': started ? 'ACTIVE' : 'ERROR',
+    'state': stateString,
   });
 
   // Push the policy to the Android service so it can gate vibration.
-  if (started) {
+  if (result == StartupResult.success) {
     await channel.invokeMethod('policy', policy.toJson());
   }
 }
@@ -221,6 +232,7 @@ class _HumSukhanAppState extends State<HumSukhanApp> {
               localizationsDelegates: localizationDelegates,
               home: SplashScreen(
                 onComplete: () => setState(() => _showSplash = false),
+                initializationReady: settings.ready,
               ),
             );
           }

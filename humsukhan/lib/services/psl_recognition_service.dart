@@ -2,44 +2,43 @@ import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 
-/// Experimental hand-shape recognition service.
+/// PSL (Pakistani Sign Language) recognition service.
 ///
-/// **This is NOT a real sign language translator.** The current implementation
-/// uses skin-colour thresholding in YUV space to detect the presence of a hand
-/// in the camera frame, then generates geometrically estimated "landmarks"
-/// from the skin-colour centroid. These estimated landmarks are fed into a
-/// simple rule-based classifier that maps a handful of finger-count patterns
-/// to approximate character labels.
+/// ## Architecture
 ///
-/// ## Current limitations
+/// This service manages the camera lifecycle and frame-processing pipeline.
+/// It currently uses **skin-colour heuristics** for hand detection — it is
+/// NOT a full sign-language translator.
 ///
-/// - Hand detection is based on skin colour, not a trained model. It will
-///   struggle with lighting variations, gloves, and diverse skin tones.
-/// - The 21 "landmarks" are placed at fixed offsets from the skin centroid.
-///   They do NOT represent actual finger positions.
-/// - Gesture classification uses finger-count heuristics on those estimated
-///   landmarks — it cannot distinguish signs that require precise joint
+/// ### Model integration point
+///
+/// The function [_processFrameInIsolate] is the single integration point
+/// where a real hand-landmark model (e.g. MediaPipe Hands, TFLite) should
+/// be plugged in.  When a trained PSL model is available:
+///
+/// 1. Replace [_processFrameInIsolate] with a function that runs the model
+///    on the camera frame bytes.
+/// 2. The model must output 21 [HandLandmark] points in the MediaPipe Hands
+///    landmark order (wrist, thumb×4, index×4, middle×4, ring×4, pinky×4).
+/// 3. The downstream [_classifyGesture] method already consumes
+///    [HandLandmark] lists in that format, so the classifier can remain
+///    unchanged if the new model produces compatible output.
+///
+/// ### Current limitations (heuristic mode)
+///
+/// - Hand detection is based on skin colour, not a trained model.
+/// - Landmarks are geometrically placed at fixed offsets from the skin
+///   centroid — they do NOT represent actual finger positions.
+/// - Gesture classification uses finger-count heuristics on estimated
+///   landmarks — it cannot distinguish signs requiring precise joint
 ///   angles, motion, or context.
-/// - Left/right hand discrimination is unreliable with the front camera
-///   (which mirrors the image).
-/// - Character labels are illustrative approximations, not validated PSL
-///   signs.
-///
-/// ## Replacing with a real model
-///
-/// To swap in a real hand-landmark model later, replace the
-/// [_detectAndClassify] isolate function with one that runs a hand-landmark
-/// neural network (e.g. MediaPipe Hands via TFLite). The downstream
-/// [_classifyGesture] method already consumes [HandLandmark] lists in the
-/// same 21-point format that MediaPipe Hands produces, so the classifier
-/// can remain unchanged if the new model outputs compatible landmarks.
+/// - Left/right hand discrimination is unreliable with the front camera.
 class PslRecognitionService {
   PslRecognitionService._();
   static PslRecognitionService? _instance;
   static PslRecognitionService get instance => _instance ??= PslRecognitionService._();
 
   CameraController? _cameraController;
-  StreamSubscription? _frameSubscription;
   final StreamController<PslResult> _resultController =
       StreamController<PslResult>.broadcast();
 
@@ -49,6 +48,9 @@ class PslRecognitionService {
   DateTime? _lastSignTime;
   DateTime? _lastSpaceTime;
 
+  /// The currently active camera lens direction.
+  CameraLensDirection _currentLensDirection = CameraLensDirection.front;
+
   static const Duration _signDebounce = Duration(milliseconds: 800);
   static const Duration _spaceTimeout = Duration(seconds: 2);
 
@@ -57,23 +59,28 @@ class PslRecognitionService {
   bool get isProcessing => _isProcessing;
   String get accumulatedText => _accumulatedText;
   CameraController? get cameraController => _cameraController;
+  CameraLensDirection get currentLensDirection => _currentLensDirection;
+  bool get isFrontCamera => _currentLensDirection == CameraLensDirection.front;
 
-  /// Initialize camera for hand-shape detection.
-  Future<bool> initialize() async {
-    if (_isInitialized) return true;
+  /// Initialize camera with the given [lensDirection].
+  ///
+  /// If a camera is already initialized, it is disposed first.
+  Future<bool> initialize({CameraLensDirection lensDirection = CameraLensDirection.front}) async {
+    // Dispose existing camera if switching.
+    await _disposeCamera();
+
+    _currentLensDirection = lensDirection;
 
     try {
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
-        debugPrint('HandShape: No cameras available');
+        debugPrint('PslRecognition: No cameras available');
+        _isInitialized = false;
         return false;
       }
 
-      // Use front camera for selfie-style hand display.
-      // NOTE: front camera mirrors the image horizontally, which flips
-      // left/right hand assumptions. See _classifyGesture for details.
       final camera = cameras.firstWhere(
-        (c) => c.lensDirection == CameraLensDirection.front,
+        (c) => c.lensDirection == lensDirection,
         orElse: () => cameras.first,
       );
 
@@ -87,12 +94,37 @@ class PslRecognitionService {
       await _cameraController!.initialize();
       _isInitialized = true;
 
-      debugPrint('HandShape: Camera initialized (${camera.name})');
+      debugPrint('PslRecognition: Camera initialized (${camera.name}, ${camera.lensDirection})');
       return true;
     } catch (e) {
-      debugPrint('HandShape initialization error: $e');
+      debugPrint('PslRecognition initialization error: $e');
+      _isInitialized = false;
       return false;
     }
+  }
+
+  /// Switch between front and rear camera.
+  ///
+  /// Properly disposes the current camera, reinitializes with the other
+  /// camera, and restarts processing if it was active.
+  Future<bool> switchCamera() async {
+    final newDirection = _currentLensDirection == CameraLensDirection.front
+        ? CameraLensDirection.back
+        : CameraLensDirection.front;
+
+    final wasProcessing = _isProcessing;
+
+    if (wasProcessing) {
+      stopProcessing();
+    }
+
+    final success = await initialize(lensDirection: newDirection);
+
+    if (success && wasProcessing) {
+      await startProcessing();
+    }
+
+    return success;
   }
 
   /// Start processing camera frames for hand-shape detection.
@@ -109,40 +141,41 @@ class PslRecognitionService {
       _processFrame(image);
     });
 
-    debugPrint('HandShape: Processing started');
+    debugPrint('PslRecognition: Processing started');
   }
 
-  /// Stop processing.
+  /// Stop processing frames.
   void stopProcessing() {
     _isProcessing = false;
-    _frameSubscription?.cancel();
     _cameraController?.stopImageStream();
-    debugPrint('HandShape: Processing stopped');
+    debugPrint('PslRecognition: Processing stopped');
   }
 
   /// Process a camera frame for hand detection and gesture classification.
   void _processFrame(CameraImage image) {
-    if (_isProcessing) {
-      _isProcessing = false; // Prevent re-entry
+    if (!_isProcessing) return;
 
-      compute(_detectAndClassify, _FrameData(
-        planes: image.planes.map((p) => _PlaneData(
-          bytes: p.bytes,
-          bytesPerRow: p.bytesPerRow,
-          bytesPerPixel: p.bytesPerPixel ?? 1,
-        )).toList(),
-        width: image.width,
-        height: image.height,
-        format: image.format.raw,
-      )).then((result) {
-        if (result != null) {
-          _handleDetectionResult(result);
-        }
-        _isProcessing = true;
-      }).catchError((e) {
-        _isProcessing = true;
-      });
-    }
+    _isProcessing = false; // Prevent re-entry
+
+    compute(_processFrameInIsolate, _FrameData(
+      planes: image.planes.map((p) => _PlaneData(
+        bytes: p.bytes,
+        bytesPerRow: p.bytesPerRow,
+        bytesPerPixel: p.bytesPerPixel ?? 1,
+      )).toList(),
+      width: image.width,
+      height: image.height,
+      format: image.format.raw,
+      isFrontCamera: _currentLensDirection == CameraLensDirection.front,
+    )).then((result) {
+      if (result != null) {
+        _handleDetectionResult(result);
+      }
+      _isProcessing = true;
+    }).catchError((e) {
+      debugPrint('PslRecognition: isolate error: $e');
+      _isProcessing = true;
+    });
   }
 
   /// Handle a detection result from the isolate.
@@ -183,20 +216,11 @@ class PslRecognitionService {
     }
   }
 
-  /// Classify estimated hand landmarks into a gesture label.
+  /// Classify hand landmarks into a gesture label.
   ///
-  /// The classification is based on simple finger-count heuristics: it
-  /// checks how many "finger tips" appear above their "PIP joints" in the
-  /// estimated landmark set. Because the landmarks are geometrically placed
-  /// (not detected by a model), the finger-extension signal is unreliable.
-  ///
-  /// **Handedness caveat:** The front camera mirrors the image. A right
-  /// hand appears on the left side of the frame and vice versa. The thumb
-  /// heuristic below uses an absolute x-axis comparison, which means it
-  /// works for one hand orientation only. This is a known limitation of
-  /// the heuristic approach.
-  ///
-  /// Returns null if no pattern matches.
+  /// Uses finger-count heuristics on estimated landmarks.  When a real
+  /// model is integrated, this method will work on actual detected joint
+  /// positions instead of estimated ones.
   _PslGesture? _classifyGesture(List<HandLandmark> landmarks) {
     if (landmarks.length < 21) return null;
 
@@ -212,31 +236,26 @@ class PslRecognitionService {
     final ringPip = landmarks[14];
     final pinkyPip = landmarks[18];
 
-    // A finger is "extended" if its tip is above (lower y value) its PIP
-    // joint in the estimated landmark set.
+    // A finger is "extended" if its tip is above (lower y value) its PIP joint.
     final indexExtended = indexTip.y < indexPip.y;
     final middleExtended = middleTip.y < middlePip.y;
     final ringExtended = ringTip.y < ringPip.y;
     final pinkyExtended = pinkyTip.y < pinkyPip.y;
 
     // Thumb: compare x-axis distance. With a mirrored front camera this
-    // is ambiguous — it works for one hand but not the other. This is a
-    // known limitation that only a real landmark model can resolve.
+    // is ambiguous — it works for one hand but not the other.
     final thumbExtended = (thumbTip.x - thumbIp.x).abs() > 0.02;
 
-    // ── Hand-shape → character label mapping ────────────────────────────
+    // ── Gesture → character label mapping ─────────────────────────────
     //
     // These labels are illustrative approximations used to demonstrate the
     // concept of hand-shape-to-text mapping. They are NOT validated PSL
-    // finger-spelling signs and should not be relied upon for actual
-    // sign-language communication.
+    // finger-spelling signs.
 
-    // All fingers closed
     if (!indexExtended && !middleExtended && !ringExtended && !pinkyExtended) {
       return _PslGesture(name: 'Fist', character: null);
     }
 
-    // All fingers extended
     if (indexExtended && middleExtended && ringExtended && pinkyExtended) {
       if (thumbExtended) {
         return _PslGesture(name: 'Open Palm', isSpace: true);
@@ -244,47 +263,38 @@ class PslRecognitionService {
       return _PslGesture(name: 'Flat Hand', character: 'B');
     }
 
-    // Index only
     if (indexExtended && !middleExtended && !ringExtended && !pinkyExtended) {
       return _PslGesture(name: 'Index Point', character: 'A');
     }
 
-    // Index + middle (V shape)
     if (indexExtended && middleExtended && !ringExtended && !pinkyExtended) {
       return _PslGesture(name: 'V Shape', character: 'V');
     }
 
-    // Three fingers up
     if (indexExtended && middleExtended && ringExtended && !pinkyExtended) {
       return _PslGesture(name: 'Three Fingers', character: 'W');
     }
 
-    // Thumb only
     if (thumbExtended && !indexExtended && !middleExtended && !ringExtended && !pinkyExtended) {
       return _PslGesture(name: 'Thumb', character: 'T');
     }
 
-    // Thumb + index (L shape)
     if (thumbExtended && indexExtended && !middleExtended && !ringExtended && !pinkyExtended) {
       return _PslGesture(name: 'L Shape', character: 'L');
     }
 
-    // Thumb + pinky (Y shape)
     if (thumbExtended && !indexExtended && !middleExtended && !ringExtended && pinkyExtended) {
       return _PslGesture(name: 'Y Shape', character: 'Y');
     }
 
-    // Pinky only
     if (!indexExtended && !middleExtended && !ringExtended && pinkyExtended) {
       return _PslGesture(name: 'Pinky', character: 'I');
     }
 
-    // Ring + pinky
     if (!indexExtended && !middleExtended && ringExtended && pinkyExtended) {
       return _PslGesture(name: 'Two Fingers', character: 'U');
     }
 
-    // Middle only
     if (!indexExtended && middleExtended && !ringExtended && !pinkyExtended) {
       return _PslGesture(name: 'Middle Point', character: 'D');
     }
@@ -305,22 +315,37 @@ class PslRecognitionService {
     ));
   }
 
-  /// Reset and dispose.
-  void dispose() {
-    stopProcessing();
-    _cameraController?.dispose();
+  /// Dispose the camera controller without closing the stream controller.
+  Future<void> _disposeCamera() async {
+    try {
+      if (_cameraController != null) {
+        if (_cameraController!.value.isStreamingImages) {
+          await _cameraController!.stopImageStream();
+        }
+        await _cameraController!.dispose();
+      }
+    } catch (e) {
+      debugPrint('PslRecognition: camera dispose error: $e');
+    }
     _cameraController = null;
     _isInitialized = false;
+  }
+
+  /// Reset and fully dispose.
+  Future<void> dispose() async {
+    stopProcessing();
+    await _disposeCamera();
     _resultController.close();
   }
 }
 
+// ── Data classes ─────────────────────────────────────────────────────
+
 /// A single hand landmark point.
 ///
-/// In the current heuristic prototype these are geometrically estimated
-/// from the skin-colour centroid, not detected by a neural network.
-/// When a real model is integrated, these will contain actual detected
-/// coordinates.
+/// In heuristic mode these are geometrically estimated from the skin-colour
+/// centroid.  When a real model is integrated, these will contain actual
+/// detected coordinates.
 class HandLandmark {
   final double x;
   final double y;
@@ -345,8 +370,7 @@ class _PslGesture {
 ///
 /// [matchStrength] is the ratio of skin-colour pixels in the sampled
 /// camera region — it indicates how much skin was visible, NOT how
-/// confident a classification model is. Do not display this as a
-/// "confidence" or "accuracy" percentage to the user.
+/// confident a classification model is.
 class PslResult {
   final String? character;
   final String gestureName;
@@ -361,18 +385,22 @@ class PslResult {
   });
 }
 
+// ── Isolate data ─────────────────────────────────────────────────────
+
 /// Data passed to compute isolate for frame processing.
 class _FrameData {
   final List<_PlaneData> planes;
   final int width;
   final int height;
   final int format;
+  final bool isFrontCamera;
 
   const _FrameData({
     required this.planes,
     required this.width,
     required this.height,
     required this.format,
+    required this.isFrontCamera,
   });
 }
 
@@ -404,21 +432,30 @@ class _DetectionResult {
   });
 }
 
-/// Process a camera frame in an isolate using skin-colour thresholding.
+// ── Frame processing (isolate entry point) ──────────────────────────
+
+/// Process a camera frame in an isolate.
 ///
-/// This is a heuristic prototype. To integrate a real hand-landmark model,
-/// replace this function with one that runs MediaPipe Hands (or another
-/// TFLite hand-landmark model) on the frame bytes. The output must produce
-/// a list of 21 [HandLandmark] points in the same order as the MediaPipe
-/// Hands schema so that [_classifyGesture] can consume them unchanged.
-_DetectionResult? _detectAndClassify(_FrameData frame) {
+/// **This is the single integration point for a real PSL model.**
+///
+/// Currently uses skin-colour thresholding as a heuristic prototype.
+/// To integrate a real hand-landmark model:
+///
+/// 1. Load the TFLite/ONNX model weights into the isolate.
+/// 2. Run inference on [frame.planes] bytes.
+/// 3. Produce 21 [HandLandmark] points in MediaPipe Hands order.
+/// 4. Return a [_DetectionResult] with `handDetected: true`.
+///
+/// The downstream [_classifyGesture] method already consumes
+/// [HandLandmark] lists in the 21-point MediaPipe format.
+_DetectionResult? _processFrameInIsolate(_FrameData frame) {
   if (frame.planes.isEmpty) return null;
 
   final yPlane = frame.planes[0].bytes;
   final uPlane = frame.planes.length > 1 ? frame.planes[1].bytes : null;
   final vPlane = frame.planes.length > 2 ? frame.planes[2].bytes : null;
 
-  // Sample center region for skin colour detection
+  // Sample center region for skin colour detection.
   final centerX = frame.width ~/ 2;
   final centerY = frame.height ~/ 2;
   final sampleRadius = frame.width ~/ 4;
@@ -428,9 +465,9 @@ _DetectionResult? _detectAndClassify(_FrameData frame) {
   double sumX = 0;
   double sumY = 0;
 
-  // YUV420 skin-colour thresholds.
-  // This is a rough model that works poorly for very dark or very light
-  // skin under extreme lighting — a known limitation.
+  // YUV420 skin-colour thresholds — works poorly for very dark or very
+  // light skin under extreme lighting.  A real model would not have
+  // this limitation.
   for (int dy = -sampleRadius; dy < sampleRadius; dy += 4) {
     for (int dx = -sampleRadius; dx < sampleRadius; dx += 4) {
       final px = centerX + dx;
@@ -475,8 +512,8 @@ _DetectionResult? _detectAndClassify(_FrameData frame) {
   );
 
   // Generate estimated landmarks from skin centroid.
-  // These are fixed-offset approximations, NOT real detected joint
-  // positions. Replace with actual model output for production use.
+  // These are fixed-offset approximations — NOT real detected joint positions.
+  // Replace with actual model output for production use.
   final centroidX = skinPixelCount > 0 ? sumX / skinPixelCount : centerX.toDouble();
   final centroidY = skinPixelCount > 0 ? sumY / skinPixelCount : centerY.toDouble();
   final handSize = sampleRadius * 0.6;
@@ -492,11 +529,10 @@ _DetectionResult? _detectAndClassify(_FrameData frame) {
 
 /// Generate estimated hand landmarks from skin centroid.
 ///
-/// Places 21 points at fixed offsets relative to the centroid. These
-/// simulate the MediaPipe Hands landmark layout so that [_classifyGesture]
-/// can consume them, but they carry NO real positional information — every
-/// frame produces the same relative geometry regardless of actual finger
-/// positions.
+/// Places 21 points at fixed offsets relative to the centroid.  These
+/// simulate the MediaPipe Hands landmark layout but carry NO real
+/// positional information — every frame produces the same relative
+/// geometry regardless of actual finger positions.
 ///
 /// Replace this function with real model inference for production use.
 List<HandLandmark> _generateEstimatedLandmarks(
@@ -505,8 +541,6 @@ List<HandLandmark> _generateEstimatedLandmarks(
   final ny = cy / imgH;
   final ns = size / imgW;
 
-  // 21 points mimicking the MediaPipe Hands landmark order:
-  // wrist, thumb(4), index(4), middle(4), ring(4), pinky(4).
   return [
     // 0: Wrist
     HandLandmark(x: nx, y: ny + ns * 0.3, z: 0),

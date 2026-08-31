@@ -384,11 +384,11 @@ class EnhancedSpeechProvider {
   String get sttModeLabel {
     switch (_currentMode) {
       case STTMode.sherpaStreaming:
-        return 'Offline (Streaming)';
+        return 'Offline (Live)';
       case STTMode.sherpaBatch:
         return 'Offline (Batch)';
       case STTMode.platform:
-        return 'Online (Google)';
+        return 'Online';
       case STTMode.demo:
         return 'Demo Mode';
       case STTMode.none:

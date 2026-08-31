@@ -9,6 +9,31 @@ import '../models/models.dart';
 import 'audio_model_manager.dart';
 import 'sherpa_audio_tagger.dart';
 
+/// Describes the outcome of a monitoring startup attempt.
+///
+/// Each variant identifies a specific subsystem that failed, so the UI
+/// can report a truthful state instead of a generic "Microphone unavailable".
+enum StartupResult {
+  /// Microphone permission was denied by the user or OS.
+  permissionDenied,
+
+  /// Microphone permission is granted but the audio recorder could not be
+  /// created or started (hardware issue, another app holding the mic, etc.).
+  recorderFailed,
+
+  /// The environmental sound-classification model is not installed locally.
+  modelUnavailable,
+
+  /// The sherpa-onnx audio tagger failed to initialise with the model.
+  taggerFailed,
+
+  /// An unexpected error occurred during startup.
+  unknownError,
+
+  /// Monitoring started successfully.
+  success,
+}
+
 /// Rolling-window / hop scheduler for audio-stream processing.
 ///
 /// Tracks the next sample position at which a fixed-size window should be
@@ -146,26 +171,37 @@ class SoundDetectionService {
 
   Future<bool> _hasPermission() async => (await Permission.microphone.status).isGranted;
 
-  Future<bool> startMonitoring({bool permissionAlreadyGranted = false}) async {
-    if (_monitoring) return true;
+  /// Start the local environmental monitoring pipeline.
+  ///
+  /// Returns a [StartupResult] that identifies which subsystem failed
+  /// (if any) so the UI can report a truthful status.
+  Future<StartupResult> startMonitoring({bool permissionAlreadyGranted = false}) async {
+    if (_monitoring) return StartupResult.success;
     if (!_initialized) {
       final ok = await initialize(requestPermission: !permissionAlreadyGranted);
-      if (!ok) return false;
+      if (!ok) {
+        // Distinguish permission denial from other init failures.
+        if (!permissionAlreadyGranted) {
+          final status = await Permission.microphone.status;
+          if (!status.isGranted) return StartupResult.permissionDenied;
+        }
+        return StartupResult.unknownError;
+      }
     }
-    if (_audioRecorder == null) return false;
+    if (_audioRecorder == null) return StartupResult.recorderFailed;
 
     try {
       if (!permissionAlreadyGranted && !await _audioRecorder!.hasPermission()) {
         debugPrint('SoundDetection: no recorder permission');
-        return false;
+        return StartupResult.permissionDenied;
       }
       if (!await AudioModelManager.instance.initialize()) {
         debugPrint('SoundDetection: refusing to start without local model');
-        return false;
+        return StartupResult.modelUnavailable;
       }
       if (!await _tagger.initialize()) {
         debugPrint('SoundDetection: tagger initialization failed');
-        return false;
+        return StartupResult.taggerFailed;
       }
 
       const config = RecordConfig(encoder: AudioEncoder.pcm16bits, sampleRate: _sampleRate, numChannels: 1);
@@ -178,12 +214,12 @@ class SoundDetectionService {
           onError: (e) => debugPrint('SoundDetection: audio stream error: $e'));
       _monitoring = true;
       debugPrint('SoundDetection: local monitoring active');
-      return true;
+      return StartupResult.success;
     } catch (e) {
       debugPrint('SoundDetection start error: $e');
       _monitoring = false;
       _tagger.release();
-      return false;
+      return StartupResult.unknownError;
     }
   }
 

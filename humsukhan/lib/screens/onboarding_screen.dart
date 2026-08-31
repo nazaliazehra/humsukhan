@@ -212,8 +212,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  void _completeOnboarding() {
-    context.read<SettingsProvider>().completeOnboarding();
+  Future<void> _completeOnboarding() async {
+    // Persist the onboarding-complete flag BEFORE navigating, so a
+    // killed-and-restarted app never shows the tutorial again.
+    await context.read<SettingsProvider>().completeOnboarding();
+    if (!mounted) return;
     Navigator.of(context).pushReplacementNamed('/auth');
   }
 }

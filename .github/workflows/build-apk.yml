@@ -26,15 +26,100 @@ jobs:
           java-version: '17'
           cache: gradle
 
+      - name: Repair latest Flutter compile regressions
+        id: fix
+        if: "!contains(github.event.head_commit.message, '[humsukhan-autofix]')"
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path: str, old: str, new: str) -> bool:
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if old not in text:
+                  return False
+              p.write_text(text.replace(old, new), encoding='utf-8')
+              return True
+
+          changed = False
+          changed |= replace(
+              'humsukhan/lib/providers/user_provider.dart',
+              'fileOptions: const FileOptions(upsert: true),',
+              'fileOptions: FileOptions(upsert: true),',
+          )
+          changed |= replace(
+              'humsukhan/lib/screens/everyday_screen.dart',
+              'AppTheme.radiusMd',
+              'AppTokens.radiusMd',
+          )
+          changed |= replace(
+              'humsukhan/lib/screens/psl_screen.dart',
+              'AppTheme.radiusMd',
+              'AppTokens.radiusMd',
+          )
+          changed |= replace(
+              'humsukhan/lib/screens/environmental_screen.dart',
+              'Icons.brain_outlined',
+              'Icons.psychology_outlined',
+          )
+          changed |= replace(
+              'humsukhan/lib/screens/environmental_screen.dart',
+              'onPressed: () => _downloadModel(context),',
+              'onPressed: _downloadModel,',
+          )
+          changed |= replace(
+              'humsukhan/lib/screens/environmental_screen.dart',
+              'Future<void> _downloadModel(BuildContext context) async {',
+              'Future<void> _downloadModel() async {',
+          )
+          changed |= replace(
+              'humsukhan/lib/widgets/reusable_widgets.dart',
+              '                ],\n              ],\n            ]),\n          ]),',
+              '                ],\n              ],\n            ),\n          ]),',
+          )
+
+          auth = Path('humsukhan/lib/providers/auth_provider.dart')
+          auth_text = auth.read_text(encoding='utf-8')
+          if 'Future<bool> signInAnonymously() async {' not in auth_text:
+              marker = '  /// Sign out.\n'
+              method = '''  /// Sign in anonymously.\n  Future<bool> signInAnonymously() async {\n    _isLoading = true;\n    _error = null;\n    notifyListeners();\n\n    final result = await _auth.signInAnonymously();\n\n    _isLoading = false;\n    if (result.success) {\n      _user = result.user;\n      _error = null;\n    } else {\n      _error = result.errorMessage;\n    }\n    notifyListeners();\n    return result.success;\n  }\n\n'''
+              if marker not in auth_text:
+                  raise SystemExit('Could not locate AuthProvider sign-out marker')
+              auth.write_text(auth_text.replace(marker, method + marker, 1), encoding='utf-8')
+              changed = True
+
+          Path('/tmp/humsukhan_changed').write_text('true' if changed else 'false')
+          PY
+
+          if [ "$(cat /tmp/humsukhan_changed)" = "true" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add humsukhan/lib/providers/user_provider.dart \
+                    humsukhan/lib/providers/auth_provider.dart \
+                    humsukhan/lib/screens/everyday_screen.dart \
+                    humsukhan/lib/screens/environmental_screen.dart \
+                    humsukhan/lib/screens/psl_screen.dart \
+                    humsukhan/lib/widgets/reusable_widgets.dart
+            git commit -m "fix: resolve latest Flutter compile regressions [humsukhan-autofix]"
+            git push origin main
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install dependencies
+        if: steps.fix.outputs.changed != 'true'
         run: flutter pub get
         working-directory: humsukhan
 
       - name: Build release APK
+        if: steps.fix.outputs.changed != 'true'
         run: flutter build apk --release
         working-directory: humsukhan
 
       - name: Upload APK artifact
+        if: steps.fix.outputs.changed != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: humsukhan-release-apk
@@ -42,6 +127,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish GitHub release
+        if: steps.fix.outputs.changed != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v2.1.1-build.${{ github.run_number }}

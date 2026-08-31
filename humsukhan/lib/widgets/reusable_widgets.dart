@@ -46,7 +46,6 @@ class OfflineBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final s = AppStrings.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -57,7 +56,7 @@ class OfflineBadge extends StatelessWidget {
         Icon(isOnline ? Icons.wifi : Icons.wifi_off, size: 14,
             color: isOnline ? AppTokens.deepSage : AppTokens.warning),
         const SizedBox(width: 4),
-        Text(isOnline ? s.onlineLabel : s.offlineLabel,
+        Text(isOnline ? 'Online' : 'Offline',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
                 color: isOnline ? AppTokens.deepSage : AppTokens.warning)),
       ]),
@@ -92,22 +91,15 @@ class RetentionBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = AppStrings.of(context);
-    Color bgColor; Color textColor; String text; IconData icon;
-    if (daysRemaining <= 2) { bgColor = AppTokens.error.withValues(alpha: 0.1); textColor = AppTokens.error; icon = Icons.warning; text = '$daysRemaining ${s.daysLeft}'; }
-    else if (daysRemaining <= 7) { bgColor = AppTokens.warning.withValues(alpha: 0.1); textColor = AppTokens.warning; icon = Icons.schedule; text = '$daysRemaining ${s.daysLeft}'; }
-    else { bgColor = AppTokens.deepSage.withValues(alpha: 0.1); textColor = AppTokens.deepSage; icon = Icons.check_circle_outline; text = '$daysRemaining ${s.daysLeft}'; }
+    Color bgColor; Color textColor; String text;
+    if (daysRemaining <= 2) { bgColor = AppTokens.error.withValues(alpha: 0.1); textColor = AppTokens.error; text = '$daysRemaining ${s.daysLeft}'; }
+    else if (daysRemaining <= 7) { bgColor = AppTokens.warning.withValues(alpha: 0.1); textColor = AppTokens.warning; text = '$daysRemaining ${s.daysLeft}'; }
+    else { bgColor = AppTokens.deepSage.withValues(alpha: 0.1); textColor = AppTokens.deepSage; text = '$daysRemaining ${s.daysLeft}'; }
 
-    return Semantics(
-      label: '$daysRemaining ${s.daysLeft}',
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(AppTokens.radiusFull)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 12, color: textColor),
-          const SizedBox(width: 4),
-          Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textColor)),
-        ]),
-      ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(AppTokens.radiusFull)),
+      child: Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textColor)),
     );
   }
 }
@@ -142,49 +134,26 @@ class SessionCard extends StatelessWidget {
               Expanded(child: Text(session.title, style: const TextStyle(
                 fontSize: 16, fontWeight: FontWeight.w600, color: AppTokens.textDeepForest,
               ), maxLines: 1, overflow: TextOverflow.ellipsis)),
-              const SizedBox(width: 8),
               RetentionBadge(daysRemaining: session.daysRemaining),
             ]),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              children: [
-                Icon(_typeIcon(), size: 14, color: AppTokens.textMuted),
-                Text(sessionTypeLabel(session.type),
-                    style: const TextStyle(fontSize: 12, color: AppTokens.textMuted)),
-                const SizedBox(width: 12),
-                Icon(Icons.access_time, size: 14, color: AppTokens.textMuted),
-                Text('${session.createdAt.day}/${session.createdAt.month}/${session.createdAt.year}',
-                    style: const TextStyle(fontSize: 12, color: AppTokens.textMuted)),
-                const SizedBox(width: 12),
-                Icon(Icons.subtitles, size: 14, color: AppTokens.textMuted),
-                Text('${session.captions.length} ${s.captionsLabel}',
-                    style: const TextStyle(fontSize: 12, color: AppTokens.textMuted)),
-                if (insight != null && insight!.isAvailable) ...[
-                  const SizedBox(width: 12),
-                  const Icon(Icons.auto_awesome, size: 14, color: AppTokens.deepSage),
-                  Text(s.aiInsights, style: const TextStyle(fontSize: 12, color: AppTokens.deepSage)),
-                ],
+            Row(children: [
+              Icon(Icons.access_time, size: 14, color: AppTokens.textMuted),
+              const SizedBox(width: 4),
+              Text('${session.createdAt.day}/${session.createdAt.month}/${session.createdAt.year}',
+                  style: const TextStyle(fontSize: 12, color: AppTokens.textMuted)),
+              const SizedBox(width: 16),
+              Icon(Icons.subtitles, size: 14, color: AppTokens.textMuted),
+              const SizedBox(width: 4),
+              Text('${session.captions.length} ${s.captionsLabel}',
+                  style: const TextStyle(fontSize: 12, color: AppTokens.textMuted)),
+              if (insight != null && insight!.isAvailable) ...[
+                const SizedBox(width: 16),
+                const Icon(Icons.auto_awesome, size: 14, color: AppTokens.deepSage),
+                const SizedBox(width: 4),
+                Text(s.aiInsights, style: const TextStyle(fontSize: 12, color: AppTokens.deepSage)),
               ],
-            ),
-            // Insight highlights — surface deadlines, action items, people
-            if (insight != null && insight!.isAvailable &&
-                (insight!.actionItems.isNotEmpty || insight!.deadlines.isNotEmpty || insight!.mentionedPeople.isNotEmpty)) ...[
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: [
-                  if (insight!.actionItems.isNotEmpty)
-                    _InsightChip(icon: Icons.check_circle_outline, label: s.actionCount(insight!.actionItems.length)),
-                  if (insight!.deadlines.isNotEmpty)
-                    _InsightChip(icon: Icons.schedule, label: s.deadlineCount(insight!.deadlines.length), isWarning: true),
-                  if (insight!.mentionedPeople.isNotEmpty)
-                    _InsightChip(icon: Icons.person_outline, label: s.peopleCount(insight!.mentionedPeople.length)),
-                ],
-              ),
-            ],
+            ]),
           ]),
         ),
       ),
@@ -210,7 +179,7 @@ class InsightCard extends StatelessWidget {
           Row(children: [
             Icon(icon, size: 20, color: iconColor ?? AppTokens.deepSage),
             const SizedBox(width: 8),
-            Expanded(child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTokens.textDeepForest))),
+            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTokens.textDeepForest)),
           ]),
           const SizedBox(height: 12),
           if (items.isEmpty) Text(s.noItemsAvailable, style: const TextStyle(color: AppTokens.textMuted, fontSize: 13))
@@ -233,68 +202,37 @@ class AlertCard extends StatelessWidget {
   final VoidCallback? onDismiss;
   const AlertCard({super.key, required this.event, this.onDismiss});
 
-  /// Map severity to an icon so it is never communicated by color alone.
-  IconData _severityIcon(String severity) => switch (severity) {
-    'critical' => Icons.error,
-    'warning' => Icons.warning_amber_rounded,
-    _ => Icons.info_outline,
-  };
-
-  String _severityLabel(String severity, AppStrings s) => switch (severity) {
-    'critical' => s.severityCritical,
-    'warning' => s.severityWarning,
-    _ => s.severityInfo,
-  };
-
   @override
   Widget build(BuildContext context) {
-    final s = AppStrings.of(context);
     final severityColor = AppTheme.alertColor(event.severity);
-    return Semantics(
-      label: '${_severityLabel(event.severity, s)} alert: ${event.type}',
-      child: Card(
-        child: ListTile(
-          leading: Container(
-            width: 48, height: 48,
-            decoration: BoxDecoration(color: severityColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppTokens.radiusSm)),
-            child: Icon(_severityIcon(event.severity), color: severityColor, size: 24),
-          ),
-          title: Text(event.type, style: const TextStyle(fontWeight: FontWeight.w600, color: AppTokens.textDeepForest)),
-          subtitle: Wrap(
-            spacing: 4,
-            children: [
-              // Severity label — not color-only.
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                decoration: BoxDecoration(
-                  color: severityColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  _severityLabel(event.severity, s),
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: severityColor),
-                ),
-              ),
-              Text('${(event.confidence * 100).toInt()}% match • ${_formatTime(event.timestamp)}',
-                  style: const TextStyle(fontSize: 12, color: AppTokens.textMuted)),
-            ],
-          ),
-          trailing: event.dismissed
-              ? const Icon(Icons.check_circle, color: AppTokens.deepSage, size: 20)
-              : Semantics(
-                  label: s.dismissAlertLabel,
-                  button: true,
-                  child: IconButton(
-                    tooltip: s.dismissAlertLabel,
-                    icon: const Icon(Icons.close, size: 20, color: AppTokens.mutedSageGray),
-                    onPressed: onDismiss,
-                  ),
-                ),
+    return Card(
+      child: ListTile(
+        leading: Container(
+          width: 48, height: 48,
+          decoration: BoxDecoration(color: severityColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppTokens.radiusSm)),
+          child: Icon(_alertIcon(event.type), color: severityColor, size: 24),
         ),
+        title: Text(event.type, style: const TextStyle(fontWeight: FontWeight.w600, color: AppTokens.textDeepForest)),
+        subtitle: Text('${(event.confidence * 100).toInt()}% confidence • ${_formatTime(event.timestamp)}',
+            style: const TextStyle(fontSize: 12, color: AppTokens.textMuted)),
+        trailing: event.dismissed
+            ? const Icon(Icons.check_circle, color: AppTokens.deepSage, size: 20)
+            : IconButton(icon: const Icon(Icons.close, size: 20, color: AppTokens.mutedSageGray), onPressed: onDismiss),
       ),
     );
   }
+
+  IconData _alertIcon(String type) => switch (type) {
+    'Fire Alarm' || 'Smoke Alarm' => Icons.local_fire_department,
+    'Siren' => Icons.emergency,
+    'Doorbell' => Icons.doorbell,
+    'Knock' => Icons.back_hand,
+    'Phone' => Icons.phone,
+    'Alarm Clock' => Icons.alarm,
+    'Baby Cry' => Icons.child_care,
+    _ => Icons.volume_up,
+  };
 
   String _formatTime(DateTime dt) => '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 }
@@ -385,7 +323,7 @@ class PrivacyNotice extends StatelessWidget {
 // ===== PRIMARY BUTTON =====
 class PrimaryActionButton extends StatelessWidget {
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final IconData? icon;
   final bool isExpanded;
   const PrimaryActionButton({super.key, required this.label, required this.onPressed, this.icon, this.isExpanded = true});
@@ -505,34 +443,6 @@ class ErrorState extends StatelessWidget {
             ElevatedButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: Text(buttonText!),),
           ],
         ]),
-      ),
-    );
-  }
-}
-
-// ===== INSIGHT CHIP (compact count badge for SessionCard) =====
-class _InsightChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isWarning;
-  const _InsightChip({required this.icon, required this.label, this.isWarning = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isWarning ? AppTokens.warning : AppTokens.deepSage;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppTokens.radiusFull),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11, color: color),
-          const SizedBox(width: 3),
-          Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
-        ],
       ),
     );
   }

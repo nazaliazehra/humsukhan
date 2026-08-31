@@ -74,9 +74,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _isSignUp
-                      ? s.signUpDesc
-                      : s.signInDesc,
+                  _isSignUp ? s.signUpDesc : s.signInDesc,
                   style: const TextStyle(
                     fontSize: 14,
                     color: AppTokens.textSecondary,
@@ -109,9 +107,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   maxLength: _isSignUp ? 8 : null,
                   decoration: InputDecoration(
                     labelText: s.passwordLabel,
-                    helperText: _isSignUp
-                        ? s.passwordHelper
-                        : null,
+                    helperText: _isSignUp ? s.passwordHelper : null,
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: Semantics(
                       label: _obscurePassword ? s.showPassword : s.hidePassword,
@@ -157,9 +153,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       ? null
                       : () => setState(() => _isSignUp = !_isSignUp),
                   child: Text(
-                    _isSignUp
-                        ? s.alreadyHaveAccount
-                        : s.noAccountSignUp,
+                    _isSignUp ? s.alreadyHaveAccount : s.noAccountSignUp,
                     style: const TextStyle(color: AppTokens.deepSage),
                   ),
                 ),
@@ -185,8 +179,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
                 const SizedBox(height: 12),
                 TextButton(
-                  onPressed: () =>
-                      Navigator.of(context).pushReplacementNamed('/home'),
+                  onPressed: () => Navigator.of(context).pushReplacementNamed('/home'),
                   child: Text(
                     s.skipForNow,
                     style: TextStyle(color: AppTokens.textMuted),
@@ -205,6 +198,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _handleSubmit() async {
+    final s = AppStrings.of(context);
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     final name = _nameController.text.trim();
